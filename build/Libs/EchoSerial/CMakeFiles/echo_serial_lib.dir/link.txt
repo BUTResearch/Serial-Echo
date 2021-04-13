@@ -1,0 +1,2 @@
+/bin/ar qc libecho_serial_lib.a  CMakeFiles/echo_serial_lib.dir/EchoSerial.cpp.o
+/bin/ranlib libecho_serial_lib.a

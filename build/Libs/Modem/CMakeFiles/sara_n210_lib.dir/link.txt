@@ -1,0 +1,2 @@
+/bin/ar qc libsara_n210_lib.a  CMakeFiles/sara_n210_lib.dir/sara_n210.cpp.o
+/bin/ranlib libsara_n210_lib.a

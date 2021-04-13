@@ -1,0 +1,40 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../Libs/Serial/Serial.h
+iostream
+-
+string
+-
+string.h
+../Libs/Serial/string.h
+termios.h
+-
+unistd.h
+-
+fcntl.h
+-
+sys/ioctl.h
+-
+
+/home/student/Desktop/Serial-Echo/Libs/Modem/sara_n210.cpp
+sara_n210.h
+/home/student/Desktop/Serial-Echo/Libs/Modem/sara_n210.h
+regex
+-
+
+/home/student/Desktop/Serial-Echo/Libs/Modem/sara_n210.h
+iostream
+-
+string
+-
+string.h
+/home/student/Desktop/Serial-Echo/Libs/Modem/string.h
+Serial.h
+/home/student/Desktop/Serial-Echo/Libs/Modem/Serial.h
+

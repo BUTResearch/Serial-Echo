@@ -1,0 +1,27 @@
+[
+{
+  "directory": "/home/student/Desktop/Serial-Echo/build",
+  "command": "/bin/g++-10   -I/home/student/Desktop/Serial-Echo/Libs/Serial -I/home/student/Desktop/Serial-Echo/Libs/EchoSerial -I/home/student/Desktop/Serial-Echo/Libs/Modem  -g   -o CMakeFiles/Serial-Echo.dir/main.cpp.o -c /home/student/Desktop/Serial-Echo/main.cpp",
+  "file": "/home/student/Desktop/Serial-Echo/main.cpp"
+},
+{
+  "directory": "/home/student/Desktop/Serial-Echo/build/Libs/Serial",
+  "command": "/bin/g++-10   -I/home/student/Desktop/Serial-Echo/Libs/Serial -I/home/student/Desktop/Serial-Echo/Libs/EchoSerial -I/home/student/Desktop/Serial-Echo/Libs/Modem  -g   -o CMakeFiles/serial_lib.dir/Serial.cpp.o -c /home/student/Desktop/Serial-Echo/Libs/Serial/Serial.cpp",
+  "file": "/home/student/Desktop/Serial-Echo/Libs/Serial/Serial.cpp"
+},
+{
+  "directory": "/home/student/Desktop/Serial-Echo/build/Libs/EchoSerial",
+  "command": "/bin/g++-10   -I/home/student/Desktop/Serial-Echo/Libs/Serial -I/home/student/Desktop/Serial-Echo/Libs/EchoSerial -I/home/student/Desktop/Serial-Echo/Libs/Modem  -g   -o CMakeFiles/echo_serial_lib.dir/EchoSerial.cpp.o -c /home/student/Desktop/Serial-Echo/Libs/EchoSerial/EchoSerial.cpp",
+  "file": "/home/student/Desktop/Serial-Echo/Libs/EchoSerial/EchoSerial.cpp"
+},
+{
+  "directory": "/home/student/Desktop/Serial-Echo/build/Libs/Modem",
+  "command": "/bin/g++-10   -I/home/student/Desktop/Serial-Echo/Libs/Serial -I/home/student/Desktop/Serial-Echo/Libs/EchoSerial -I/home/student/Desktop/Serial-Echo/Libs/Modem  -g   -o CMakeFiles/sara_n210_lib.dir/sara_n210.cpp.o -c /home/student/Desktop/Serial-Echo/Libs/Modem/sara_n210.cpp",
+  "file": "/home/student/Desktop/Serial-Echo/Libs/Modem/sara_n210.cpp"
+},
+{
+  "directory": "/home/student/Desktop/Serial-Echo/build/Libs/Modem",
+  "command": "/bin/g++-10   -I/home/student/Desktop/Serial-Echo/Libs/Serial -I/home/student/Desktop/Serial-Echo/Libs/EchoSerial -I/home/student/Desktop/Serial-Echo/Libs/Modem  -g   -o CMakeFiles/rn2483_lib.dir/rn2483.cpp.o -c /home/student/Desktop/Serial-Echo/Libs/Modem/rn2483.cpp",
+  "file": "/home/student/Desktop/Serial-Echo/Libs/Modem/rn2483.cpp"
+}
+]

@@ -1,0 +1,2 @@
+/bin/ar qc librn2483_lib.a  CMakeFiles/rn2483_lib.dir/rn2483.cpp.o
+/bin/ranlib librn2483_lib.a

@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/student/Desktop/Serial-Echo/Libs/EchoSerial/EchoSerial.cpp
+EchoSerial.h
+/home/student/Desktop/Serial-Echo/Libs/EchoSerial/EchoSerial.h
+
+/home/student/Desktop/Serial-Echo/Libs/EchoSerial/EchoSerial.h
+iostream
+-
+string
+-
+string.h
+/home/student/Desktop/Serial-Echo/Libs/EchoSerial/string.h
+termios.h
+-
+unistd.h
+-
+fcntl.h
+-
+sys/ioctl.h
+-
+thread
+-
+atomic
+-
+
