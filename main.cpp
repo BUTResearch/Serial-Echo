@@ -4,116 +4,158 @@
 #include "rn2483.h"
 #include "sara_n210.h"
 
+std::string prefix = "[DEBUG    ] ";
+
+void debug(std::string text)
+{
+    std::cout << prefix << text << std::endl;
+}
+
 int main(int, char**)
 {
     serial.begin(9600);
     serial.setTimeout(5000);
 
-    std::string modem_prefix = "[DEBUG    ] ";
+    int curr_socket = 0;
+    SARA_N210::downlink_t downlink;
 
     SARA_N210 modem = SARA_N210(serial);
 
-
-    if(modem.is_modem_modem_ok() == false)
+    if(modem.isModemOk() == false)
     {
-        std::cout << modem_prefix << "Modem check did not pass" << std::endl;
+        debug("Modem check did not pass");
         return 1;
     }
-    std::cout << modem_prefix << "Modem is OK!" << std::endl;
+    debug("Modem is OK!");
 
 
-    std::string IMSI = modem.get_IMSI();
+    std::string IMSI = modem.getIMSI();
     if(IMSI.length() == 0)
     {   
         std::cout << std::endl;
-        std::cout << modem_prefix << "IMSI could not be obtained." << std::endl;
+        debug("IMSI could not be obtained.");
         return 1;
     }
-    std::cout << std::endl << modem_prefix << "IMSI obtained: " << IMSI << std::endl;
+    debug("IMSI obtained: " + IMSI);
 
 
     if(modem.setCSCON(true) == false)
     {
-        std::cout << modem_prefix << "Couldnt set the CSCON URC ON" << std::endl;
+        debug("Couldnt set the CSCON URC ON");
         return 1;
     }
-    std::cout << modem_prefix << "CSCON URC ON success" << std::endl;
+    debug("CSCON URC ON success");
 
 
     if(modem.setCFUN(true) == false)
     {
-        std::cout << modem_prefix << "Couldnt set the CFUN ON" << std::endl;
+        debug("Couldnt set the CFUN ON");
         return 1;
     }
-    std::cout << modem_prefix << "CFUN ON success" << std::endl;
+    debug("CFUN ON success");
+
 
     if(modem.setPDPContext("IP", "moje.apn") == 0)
     {
-        std::cout << modem_prefix << "Failed to set the default PDP context" << std::endl;
+        debug("Failed to set the default PDP context");
         return 1;
     }
-    std::cout << modem_prefix << "PDP context configured successully" << std::endl;
+    debug("PDP context configured successully");
+
 
     if(modem.registerToOperator("23003") == false)
     {
-        std::cout << modem_prefix << "Could not accept the register to operator command" << std::endl;
+        debug("Could not accept the register to operator command");
         return 1;
     }
-    std::cout << modem_prefix << "Operator register command accepted" << std::endl;
-    std::cout << modem_prefix << "Waiting till the modem gets connected..." << std::endl;
+    debug("Operator register command accepted");
+    debug("Waiting till the modem gets connected...");
 
-    int connection;
-    if(modem.waitForConnection(connection) == false)
-    {
-        if(connection != 1)
-        {
-            std::cout << modem_prefix << "Waiting for the +CSCON:1 unsuccessfull" << std::endl;
-            return 1;
-        }
+
+    // Wait until the modem gets connected
+    while(modem.isCSCONTrue() == false)
+    {   
+        modem.waitForURC();
     }
-    std::cout << modem_prefix << "+CSCON:1 received" << std::endl;
+    debug("Modem is now in RRC CONNECTED state");
+
+
     auto start = std::chrono::system_clock::now();
 
-    int socket = 0;
-    if(modem.createUDPSocket(60002, socket) == false)
+    if(modem.createUDPSocket(60002, curr_socket) == false)
     {
-        std::cout << modem_prefix << "Socket could not be created" << std::endl;
+        debug("Socket could not be created");
         
         // The socket might be probably already opened
-        std::cout << modem_prefix << "To solve the problem please restart the NB-IoT emulator" << std::endl;        
+        debug("To solve the problem please restart the NB-IoT emulator");       
     }
     else
     {
-        std::cout << modem_prefix << "Socket created successfully (num: " << socket << ")" << std::endl;    
+        debug("Socket created successfully (num: " + std::to_string(curr_socket) + ")");  
     }
-    
+
+
     if(modem.sendPacket("127.0.0.1", 60000, "AABB") == false)
     {
-        std::cout << modem_prefix << "The packet could not be accepted" << std::endl;
+        debug("The packet could not be accepted"); 
         return 1;
     }
-    std::cout << modem_prefix << "The packet accepted successfully" << std::endl;
-    std::cout << modem_prefix << "Waiting till the modem gets disconnected from active connected state..." << std::endl;
+    debug("The packet accepted successfully");
+    debug("Waiting till the modem gets disconnected from active connected state..."); 
+    
 
-    if(modem.waitForConnection(connection) == false)
+    bool CSCON_connected = modem.isCSCONTrue();
+
+    // Endless loop
+    while(1)
     {
-        if(connection != 0)
+        // Wait for some modem response
+        modem.waitForURC();
+
+        if(modem.isDownlinkInQueque() == true)
         {
-            std::cout << modem_prefix << "Waiting for the +CSCON:0 unsuccessfull" << std::endl;
-            return 1;
+            if(modem.readDownlink(curr_socket, downlink) == false)
+            {
+                debug("Downlink readout failed");
+            }
+            else
+            {
+                debug("Payload: " + downlink.payload);
+                debug("socket : " + std::to_string(downlink.socket));
+                debug("ip_add : " + downlink.ip_addr);
+                debug("port   : " + std::to_string(downlink.port));
+                debug("pay_len: " + std::to_string(downlink.payload_length));
+            }
+        }
+
+        if(CSCON_connected != modem.isCSCONTrue())
+        {   
+            CSCON_connected = modem.isCSCONTrue();
+
+            if(CSCON_connected == false)
+            {
+                debug("Modem is now in IDLE state");
+            }
+
+            else
+            {
+                debug("Modem is now in Connected state");
+            }   
+
+            /*
+            auto end = std::chrono::system_clock::now();
+            
+            auto elapsed_s = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+            int seconds = elapsed_s.count();
+            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+            int milliseconds = elapsed_ms.count();
+
+            debug("Active CONNECTION took: " + std::to_string(seconds) + "s " + std::to_string(milliseconds - (1000*seconds)) + " ms");
+            */
         }
     }
-    std::cout << modem_prefix << "+CSCON:0 received" << std::endl;
-
-    auto end = std::chrono::system_clock::now();
-    
-    auto elapsed_s = std::chrono::duration_cast<std::chrono::seconds>(end - start);
-    int seconds = elapsed_s.count();
-    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    int milliseconds = elapsed_ms.count();
-
-    std::cout << modem_prefix << "Active CONNECTION took: " << seconds << "s " << milliseconds - (1000*seconds) << " ms" << std::endl;
-    std::cout << modem_prefix << "Program finished" << std::endl; 
+   
+    debug("Program finished");
 
     return 0;
 }

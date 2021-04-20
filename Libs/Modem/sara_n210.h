@@ -7,41 +7,62 @@
 class SARA_N210
 {
 private: 
-    Serial *_ser; 
-    std::string send_command(std::string command, bool command_debug_on,  bool reply_debug_on);
-    bool check_for_OK(std::string const & text);
-   
+    Serial *_ser;
+    bool URC_downlink;
+    bool URC_cscon;
+
+    void        debug(std::string text);
+    void        checkForURC(std::string text);
+    size_t      sendString(std::string command);
+    std::string readString();
+    std::string sendCommand(std::string command, bool debug_on);
+    std::string sendCommandWithExpectedAnswer(std::string command, std::string expect, bool debug_on);
+    bool        checkForOK(std::string const & text);
+    bool        receiveExpectAnswer(std::string expect, std::string &reply, bool debug_on);
+    std::string toBinary(int number, int min_bits_count);
+
 public : 
+    typedef struct downlink_t 
+    {
+        int         socket;
+        std::string ip_addr;
+        int         port;
+        int         payload_length;
+        std::string payload;
+    } downlink;
+
+    typedef enum timer_TAU_e
+    {
+        multiples_10m  = 0,
+        multiples_1h   = 1,
+        multiples_10h  = 2,
+        multiples_2s   = 3,
+        multiples_30s  = 4, 
+        multiples_1m   = 5,
+        multiples_320h = 6
+    }timer_TAU;
+
+    typedef enum timer_RAT_e
+    {
+        multiples_two_seconds = 0,
+        multiples_minute      = 1,
+        multiples_decihours   = 2,
+        multiples_decativated = 7,
+    }timer_RAT;
+
     SARA_N210(Serial & ser); 
-    bool        is_modem_modem_ok();
-    std::string get_IMSI();
+    std::string getIMSI();
+    bool        isModemOk();
     bool        setCFUN(bool on);
     bool        setCSCON(bool on);
     bool        setPDPContext(std::string pdp_type, std::string apn_name);
     bool        registerToOperator(std::string op_name);
-    bool        waitForConnection(int & state);
+    bool        waitForURC();
     int         createUDPSocket(int port_num, int & socket);
     bool        closeUDPSocket(int port_num);
-    bool        sendPacket(std::string dest_ip_addr, int dest_port, std::string payload);
-
-
-
-
-   
+    bool        sendPacket(std::string dest_ip_addr, int dest_port, std::string payload); 
+    bool        isDownlinkInQueque(); 
+    bool        readDownlink(int socket, downlink_t & downlink);
+    void        resolveURC();
+    bool        isCSCONTrue();
 };
-
-//bool        modem_set_command(const std::string layer, std::string command, std::string value, std::string expected_reply);
-//std::string modem_get_command(std::string layer, std::string command, std::string value);
-//bool        modem_send_msg(std::string & message, int port, bool confirmed, std::string & received_data);
-//std::string get_hwEUI(); 
-//bool        set_NwkSKey(std::string & nwkskey);
-//bool        set_AppSKey(std::string & appskey);
-//bool        set_DevAddr(std::string & devaddr);
-//bool        join_ABP();
-//bool        set_DataRate(int dr);
-//bool        mac_save();
-//bool        send_unconfirmed(std::string & msg);
-//bool        send_confirmed(std::string & msg, std::string & received_data);
-//bool        set_ch_dc(int channel, int value);
-//bool        get_ch_dc(int channel);
-//bool        set_ch_freq (int channel, int freq);

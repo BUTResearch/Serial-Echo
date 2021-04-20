@@ -1,29 +1,168 @@
 #include "sara_n210.h"
 #include <regex>
 
+std::string ok_resp = "OK";
 std::string modem_prefix = "[SARA_N210] ";
 
 SARA_N210::SARA_N210(Serial & ser)
 {
-     _ser = &ser; 
+     this->_ser = &ser; 
+     this->URC_cscon    = false;
+     this->URC_downlink = false;
 }
 
-std::string SARA_N210::send_command(std::string command, bool command_debug_on,  bool reply_debug_on)
+bool SARA_N210::isDownlinkInQueque()
 {
+    return this->URC_downlink;
+}
+
+void SARA_N210::debug(std::string text)
+{
+    std::cout << modem_prefix << text << std::endl;
+}
+
+std::string SARA_N210::readString()
+{   
     std::string reply;
-    
-    if(command_debug_on == true)
+
+    reply = _ser->readString();
+
+    // Just check if some Unexpected Result Code messsage received
+    this->checkForURC(reply);
+
+    return reply;
+}
+
+bool SARA_N210::readDownlink(int socket, downlink_t & downlink)
+{  
+    std::string payload;
+    int length = 256;
+    std::string command = "AT+NSORF=" + std::to_string(socket) + "," + std::to_string(length);
+    this->URC_downlink = false;
+    std::string response = sendCommandWithExpectedAnswer(command, ok_resp, true);
+
+    if(checkForOK(response))
     {
-        std::cout << modem_prefix << command << std::endl;
+        // Use rexex to find the IMSI
+        std::smatch match;
+        std::regex pattern("\\r\\n([0-9]),\"([0-9.]+)\",([0-9]+),([0-9]+),\"([0-f0-F]+)\",([0-9]+)\\r\\n\\r\\nOK\\r\\n");
+
+        if (std::regex_match(response, match, pattern))
+        {
+            // Select the second submatch
+            downlink.socket         = stoi(match[1].str());
+            downlink.ip_addr        = match[2].str();
+            downlink.port           = stoi(match[3].str());
+            downlink.payload_length = stoi(match[4].str());
+            downlink.payload        = match[5].str();
+            
+            /*
+            this->debug("socket : " + match[1].str());
+            this->debug("ip_add : " + match[2].str());
+            this->debug("port   : " + match[3].str());
+            this->debug("pay_len: " + match[4].str());
+            this->debug("payload: " + match[5].str());
+            */
+        }
     }
 
-    _ser->println(command); 
-    reply = _ser->readString();
-    //std::cout << "modem_prefix << Received: " << reply << std::endl;
-    
-    if(reply_debug_on == true)
+    return checkForOK(response);
+}
+
+bool SARA_N210::isCSCONTrue()
+{
+    return this->URC_cscon;
+}
+
+void SARA_N210::checkForURC(std::string text)
+{   
+    // Check for downlink
+    if(text.find("+NSONMI") != std::string::npos)
     {
-        std::cout << reply << std::endl;
+        this->debug("Downlink received");
+        this->URC_downlink = true;
+    }
+    
+    // Check for CSCON: 1
+    if(text.find("+CSCON: 1") != std::string::npos)
+    {
+        this->debug("+CSCON: 1 received");
+        this->URC_cscon = true;
+    }
+
+    // Check for CSCON: 0
+    if(text.find("+CSCON: 0") != std::string::npos)
+    {
+        this->debug("+CSCON: 0 received");
+        this->URC_cscon = false;
+    }   
+}
+
+size_t SARA_N210::sendString(std::string command)
+{
+    // Resolve the URC first
+    //this->resolveURC();
+
+    // Then do the regular task
+    return _ser->println(command);
+}
+
+bool SARA_N210::receiveExpectAnswer(std::string expect, std::string &reply, bool debug_on)
+{
+    std::string curr_reply;
+    reply.clear();
+    
+    int max_read_serial_loops = 10;
+
+    // Protect the program from endles loop circulating
+    while(max_read_serial_loops)
+    {
+        // Decrement the max_read_serial_loops number by one
+        max_read_serial_loops--;
+
+        curr_reply = this->readString();
+        //this->debug(reply);
+        
+        if(debug_on == true)
+        {
+            this->debug(curr_reply);
+        }
+
+        // Add the newly received string to the reply string
+        reply += curr_reply;
+
+        if(reply.find(expect) != std::string::npos)
+        {
+            // Return the string that is collected from the all received strings
+            return true;
+        }
+
+        if(reply.find("ERROR") != std::string::npos)
+        {
+            return false;
+        }
+    }
+
+    return false;
+}
+
+std::string SARA_N210::sendCommandWithExpectedAnswer(std::string command, std::string expect, bool debug_on)
+{
+    std::string reply;
+    bool status;
+
+    if(debug_on == true)
+    {
+        this->debug(command);
+    }
+
+    this->sendString(command);
+
+    status = this->receiveExpectAnswer(expect, reply, debug_on);
+
+    if(status != true)
+    {
+        this->debug("function call this->receiveExpectAnswer() didnt end well");
     }
 
     usleep(300000);
@@ -31,7 +170,31 @@ std::string SARA_N210::send_command(std::string command, bool command_debug_on, 
     return reply;
 }
 
-bool SARA_N210::check_for_OK(std::string const & text)
+
+std::string SARA_N210::sendCommand(std::string command, bool debug_on)
+{
+    std::string reply;
+    
+    if(debug_on == true)
+    {
+        this->debug(command);
+    }
+
+    this->sendString(command);
+
+    reply = this->readString();
+    
+    if(debug_on == true)
+    {
+        this->debug(reply);
+    }
+
+    usleep(300000);
+
+    return reply;
+}
+
+bool SARA_N210::checkForOK(std::string const & text)
 {
     if(text.find("OK") != std::string::npos) 
     { 
@@ -41,19 +204,65 @@ bool SARA_N210::check_for_OK(std::string const & text)
     return false;
 }
 
-bool SARA_N210::is_modem_modem_ok()
+bool SARA_N210::isModemOk()
 {
-    //std::string reply = ;
-    return check_for_OK(send_command("AT", true, true));
+    return checkForOK(sendCommandWithExpectedAnswer("AT", ok_resp, false));
 }
 
-std::string SARA_N210::get_IMSI()
+std::string SARA_N210::toBinary(int number, int min_bits_count)
+{
+    std::string r;
+    while(number!=0)
+    {
+        r=(number%2==0 ?"0":"1")+r; number/=2;
+    }
+
+    if(r.length() > min_bits_count)
+    {
+        return r;
+    }
+
+    int missing_pos = min_bits_count - r.length();
+
+    for(int i = 0; i < missing_pos; i++)
+    {
+        r.insert(0, "0");
+    }
+
+    return r;
+}
+
+bool SARA_N210::setCFUN(bool on)
+{
+    std::string command = "AT+CFUN=" + std::to_string(on);
+
+    return checkForOK(sendCommandWithExpectedAnswer(command, ok_resp, true));
+}
+
+bool SARA_N210::setCSCON(bool on)
+{
+    std::string command = "AT+CSCON=" + std::to_string(on);
+
+    return checkForOK(sendCommandWithExpectedAnswer(command, ok_resp, true));
+}
+
+bool SARA_N210::setPDPContext(std::string pdp_type, std::string apn_name)
+{
+    return checkForOK(sendCommandWithExpectedAnswer("AT+CGDCONT=1,\""+ pdp_type +"\",\"" + apn_name + "\",0,0", ok_resp, true));
+}
+
+bool SARA_N210::registerToOperator(std::string op_name)
+{
+    return checkForOK(sendCommandWithExpectedAnswer("AT+COPS=1,2,\"" + op_name + "\"", ok_resp, true));
+}
+
+std::string SARA_N210::getIMSI()
 {   
-    std::string reply = send_command("AT+CIMI", true, true);
-    
     std::string IMSI = "";
 
-    if(check_for_OK(reply))
+    std::string reply = sendCommand("AT+CIMI", true);
+    
+    if(checkForOK(reply))
     {
         // Use rexex to find the IMSI
         std::smatch match;
@@ -70,122 +279,60 @@ std::string SARA_N210::get_IMSI()
     return IMSI;
 }
 
-bool SARA_N210::setCFUN(bool on)
+bool SARA_N210::waitForURC()
 {
-    std::string command = "AT+CFUN=0";
+    //int max_read_serial_loops = 10;
 
-    if(on)
-    {
-        command = "AT+CFUN=1";
-    }
-
-    return check_for_OK(send_command(command, true, true));
-}
-
-
-bool SARA_N210::setCSCON(bool on)
-{
-    std::string command = "AT+CSCON=0";
-
-    if(on)
-    {
-        command = "AT+CSCON=1";
-    }
-
-    return check_for_OK(send_command(command, true, true));
-}
-
-bool SARA_N210::setPDPContext(std::string pdp_type, std::string apn_name)
-{
-    return check_for_OK(send_command("AT+CGDCONT=1,\""+ pdp_type +"\",\"" + apn_name + "\",0,0", true, true));
-}
-
-bool SARA_N210::registerToOperator(std::string op_name)
-{
-    return check_for_OK(send_command("AT+COPS=1,2,\"" + op_name + "\"", true, true)); 
-}
-
-bool SARA_N210::waitForConnection(int & state)
-{
-    int max_read_serial_loops = 10;
-
-    std::string reply;
+    std::string response;
 
     // Protect the program from endles loop circulating
-    while(max_read_serial_loops)
-    {
+    //while(max_read_serial_loops)
+    //{
         // Decrement the max_read_serial_loops number by one
-        max_read_serial_loops--;
+        //max_read_serial_loops--;
 
-        reply = _ser->readString();
+        response = this->readString();
         
-        // If some reply received at least return false
-        if(reply.length() > 0)
+        if(response.length() > 0)
         {
-            // If the reply contains the +CSCON: 1 URC return true
-            if(reply.find("+CSCON: 1") != std::string::npos)
+            // Hotfix
+            if((response.find("+NSONMI:") != std::string::npos) && (response.find("OK") == std::string::npos))
             {
-                state = 1;
-                return true;
+                std::string appendix;
+                appendix = this->readString();
+                response += appendix;
             }
 
-            if(reply.find("+CSCON: 0") != std::string::npos)
-            {
-                state = 0;
-                return true;
-            }
-
-            return false;
+            this->debug(response);
+            return true;
         }
-
-    }
+    //}
     return false;
 }
-
 
 int SARA_N210::createUDPSocket(int port_num, int & socket)
 {
     std::string reply;
-    reply = send_command("AT+NSOCR=\"DGRAM\",17," + std::to_string(port_num) + ",1", true, true);
+    std::string socket_num_string = "";
+    
+    reply = sendCommandWithExpectedAnswer("AT+NSOCR=\"DGRAM\",17," + std::to_string(port_num) + ",1", ok_resp, true);
 
-    if(reply.length() > 0)
+    // The response should be complete now
+    if(checkForOK(reply) == true)
     {
+        // Use regex to find the IMSI
+        std::smatch match;
+        std::regex pattern("\\r\\n([0-9]+)\\r\\n\\r\\nOK\\r\\n");
 
-        if(reply.find("ERROR") != std::string::npos)
+        if (std::regex_match(reply, match, pattern))
         {
-            // The socket is probably opened already
-            return false;
-        }
+            // Select the second submatch
+            std::ssub_match sub_match = match[1];
+            socket_num_string = sub_match.str();
 
-        if(check_for_OK(reply) == false)
-        {
-            // Receiving skipped the OK, so receive it ALSO
-            std::string appendix;
-            appendix = _ser->readString();
-            // Add the lately received response to the older one
-            reply = reply + appendix;
-        }
+            socket = stoi(socket_num_string);
 
-        // The response should be complete now
-        if(check_for_OK(reply) == true)
-        {
-            std::string socket_num_string = "";
-
-            // Use rexex to find the IMSI
-            std::smatch match;
-            std::regex pattern("\\r\\n([0-9]+)\\r\\n\\r\\nOK\\r\\n");
-
-            if (std::regex_match(reply, match, pattern))
-            {
-                // Select the second submatch
-                std::ssub_match sub_match = match[1];
-                socket_num_string = sub_match.str();
-
-                //std::cout << "Socket opened: " <<  socket_num_string << std::endl; 
-                socket = stoi(socket_num_string);
-
-                return true;
-            }
+            return true;
         }
     }
    
@@ -194,20 +341,6 @@ int SARA_N210::createUDPSocket(int port_num, int & socket)
 
 bool SARA_N210::sendPacket(std::string dest_ip_addr, int dest_port, std::string payload)
 {
-    std::string reply;
-    reply = send_command("AT+NSOST=0,\"" + dest_ip_addr + "\"," + std::to_string(dest_port) + ",2,\"" + payload + "\"", true, true);
-
-    // Uncomplete receive might occur, check that out
-    if(check_for_OK(reply) == false)
-    {   
-        // If that happen, receive the rest (appendix) also
-        std::string appendix;
-        appendix = _ser->readString();
-        if(appendix.length() > 0)
-        {
-            reply = reply + appendix;
-        }
-    }
-
-    return check_for_OK(reply);
+    std::string command = "AT+NSOST=0,\"" + dest_ip_addr + "\"," + std::to_string(dest_port) + ",2,\"" + payload + "\"";
+    return checkForOK(sendCommandWithExpectedAnswer(command, ok_resp, true));
 }
