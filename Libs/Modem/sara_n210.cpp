@@ -100,9 +100,6 @@ void SARA_N210::checkForURC(std::string text)
 
 size_t SARA_N210::sendString(std::string command)
 {
-    // Resolve the URC first
-    //this->resolveURC();
-
     // Then do the regular task
     return _ser->println(command);
 }
@@ -281,32 +278,22 @@ std::string SARA_N210::getIMSI()
 
 bool SARA_N210::waitForURC()
 {
-    //int max_read_serial_loops = 10;
-
-    std::string response;
-
-    // Protect the program from endles loop circulating
-    //while(max_read_serial_loops)
-    //{
-        // Decrement the max_read_serial_loops number by one
-        //max_read_serial_loops--;
-
-        response = this->readString();
+    std::string response = this->readString();
         
-        if(response.length() > 0)
+    if(response.length() > 0)
+    {
+        // Hotfix
+        if((response.find("+NSONMI:") != std::string::npos) && (response.find("OK") == std::string::npos))
         {
-            // Hotfix
-            if((response.find("+NSONMI:") != std::string::npos) && (response.find("OK") == std::string::npos))
-            {
-                std::string appendix;
-                appendix = this->readString();
-                response += appendix;
-            }
-
-            this->debug(response);
-            return true;
+            std::string appendix;
+            appendix = this->readString();
+            response += appendix;
         }
-    //}
+
+        this->debug(response);
+        return true;
+    }
+
     return false;
 }
 
